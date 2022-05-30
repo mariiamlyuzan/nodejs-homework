@@ -1,140 +1,116 @@
-const path = require("path");
-const fs = require("fs").promises;
-const contactsPath = path.resolve("models/contacts.json");
+const { Contact } = require("./contact");
 const shortid = require("shortid");
-
-async function getContacts() {
-  try {
-    const data = await fs.readFile(contactsPath, "utf8");
-    return JSON.parse(data);
-  } catch (error) {
-    console.log(error);
-  }
-}
+const createError = require("http-errors");
 
 async function listContacts(req, res, next) {
   try {
-    const data = await fs.readFile(contactsPath, "utf8");
-    const contacts = JSON.parse(data);
-    return res.json({ status: "success", code: 200, contacts });
+    const contacts = await Contact.find({});
+    res.json({ status: "success", code: 200, contacts });
   } catch (error) {
     next(error);
   }
 }
 
 async function getContactById(req, res, next) {
+  const { contactId } = req.params;
   try {
-    const { contactId } = req.params;
-    const contacts = await getContacts();
-
-    const contact = contacts.find(
-      (contact) => contact.id === contactId.toString()
-    );
-    console.log(contact);
+    const contact = await Contact.findById(contactId);
     if (!contact) {
-      const error = new Error(`No contact with ${contactId} id`);
-      error.status = 404;
-      throw error;
+      return next(createError(404, `No contact with ${contactId} id`));
     }
-
     return res.json({ status: "success", code: 200, contact });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    if (err.kind === "ObjectId") {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+    next(err);
   }
 }
 
 async function removeContact(req, res, next) {
+  const { contactId } = req.params;
   try {
-    const contacts = await getContacts();
-    const { contactId } = req.params;
-
-    const newContacts = contacts.filter(
-      (contact) => contact.id !== contactId.toString()
-    );
-    const contact = contacts.find(
-      (contact) => contact.id === contactId.toString()
-    );
-
+    const contact = await Contact.findByIdAndRemove(contactId);
     if (!contact) {
-      const error = new Error(`No contact with ${contactId} id`);
-      error.status = 404;
-      throw error;
+      return next(createError(404, `No contact with ${contactId} id`));
     }
-    await fs.writeFile(
-      "models/contacts.json",
-      JSON.stringify(newContacts),
-      "utf8"
-    );
-
-    return res.json({
+    res.json({
       status: "success",
       code: 200,
       mesasage: "contact deleted",
       contact,
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    if (err.kind === "ObjectId") {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+    next(err);
   }
 }
 
 async function addContact(req, res, next) {
   try {
-    const contacts = await getContacts();
-
     const { name, email, phone } = req.body;
+    const contact = await Contact.create({
+      id: shortid.generate(),
+      name,
+      email,
+      phone,
+    });
 
-    contacts.push({ id: shortid.generate(), name, email, phone });
-
-    await fs.writeFile(
-      "models/contacts.json",
-      JSON.stringify(contacts),
-      "utf8"
-    );
-
-    res.status(201).json({ status: "success", code: 201, contacts });
+    res.status(201).json({ status: "success", code: 201, contact });
   } catch (error) {
     next(error);
   }
 }
 
 async function updateContact(req, res, next) {
+  const { contactId } = req.params;
   try {
-    const { name, email, phone } = req.body;
-
-    const contacts = await getContacts();
-
-    const { contactId } = req.params;
-
-    const contact = contacts.find(
-      (contact) => contact.id === contactId.toString()
-    );
-
-    if (!contact) {
-      const error = new Error(`No contact with ${contactId} id`);
-      error.status = 404;
-      throw error;
-    }
-    contacts.forEach((contact) => {
-      if (contact.id === contactId.toString()) {
-        contact.name = name;
-        contact.email = email;
-        contact.phone = phone;
-      }
+    const contact = await Contact.findByIdAndUpdate(contactId, req.body, {
+      new: true,
     });
-    await fs.writeFile(
-      "models/contacts.json",
-      JSON.stringify(contacts),
-      "utf8"
-    );
-    res.json({ status: "success", code: 200, contacts });
-  } catch (error) {
-    next(error);
+    if (!contact) {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+
+    res.json({ status: "success", code: 200, contact });
+  } catch (err) {
+    if (err.kind === "ObjectId") {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+    next(err);
   }
 }
+
+async function updateFavorite(req, res, next) {
+  const { contactId } = req.params;
+  const { favorite } = req.body;
+  try {
+    const contact = await Contact.findByIdAndUpdate(
+      contactId,
+      { favorite },
+      {
+        new: true,
+      }
+    );
+    if (!contact) {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+    res.json({ status: "success", code: 200, contact });
+  } catch (err) {
+    if (err.kind === "ObjectId") {
+      return next(createError(404, `No contact with ${contactId} id`));
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   listContacts,
   getContactById,
   removeContact,
   addContact,
   updateContact,
+  updateFavorite,
 };

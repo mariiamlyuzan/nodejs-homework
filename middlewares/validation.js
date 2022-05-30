@@ -16,4 +16,18 @@ module.exports = {
 
     next();
   },
+
+  contactFavoriteValidation: (req, res, next) => {
+    const schema = Joi.object({
+      favorite: Joi.string().valid(true, false).required(),
+    });
+
+    const { error } = schema.validate(req.body);
+    if (error) {
+      error.status = 400;
+      throw error;
+    }
+
+    next();
+  },
 };
