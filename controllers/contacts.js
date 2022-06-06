@@ -1,10 +1,21 @@
-const { Contact } = require("./contact");
+const { Contact } = require("../models/contact");
 const shortid = require("shortid");
 const createError = require("http-errors");
 
 async function listContacts(req, res, next) {
   try {
-    const contacts = await Contact.find({});
+    const { _id } = req.user;
+    const { page = 1, limit = 20, favorite } = req.query;
+    const skip = (page - 1) * limit;
+    if (favorite) {
+      const fav = await Contact.find({ owner: _id, favorite: favorite });
+      res.json({ status: "success", code: 200, fav });
+    }
+    const contacts = await Contact.find({ owner: _id }, "", {
+      skip,
+      limit: Number(limit),
+    });
+
     res.json({ status: "success", code: 200, contacts });
   } catch (error) {
     next(error);
@@ -50,12 +61,14 @@ async function removeContact(req, res, next) {
 
 async function addContact(req, res, next) {
   try {
+    const { _id } = req.user;
     const { name, email, phone } = req.body;
     const contact = await Contact.create({
       id: shortid.generate(),
       name,
       email,
       phone,
+      owner: _id,
     });
 
     res.status(201).json({ status: "success", code: 201, contact });

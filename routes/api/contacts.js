@@ -7,18 +7,20 @@ const {
   addContact,
   updateContact,
   updateFavorite,
-} = require("../../models/contacts.js");
+} = require("../../controllers/contacts");
 
 const {
   contactValidation,
   contactFavoriteValidation,
 } = require("../../middlewares/validation");
 
-router.get("/", listContacts);
+const { auth } = require("../../middlewares/auth");
+
+router.get("/", auth, listContacts);
 
 router.get("/:contactId", getContactById);
 
-router.post("/", contactValidation, addContact);
+router.post("/", auth, contactValidation, addContact);
 
 router.delete("/:contactId", removeContact);
 
