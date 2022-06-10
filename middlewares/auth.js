@@ -20,6 +20,7 @@ async function auth(req, res, next) {
       return next(Unauthorized("Not authorized"));
     }
     req.user = user;
+
     next();
   } catch (err) {
     if (err.message === "Invalid signature") {
