@@ -60,7 +60,7 @@ module.exports = {
   },
   userSubscriptionValidation: (req, res, next) => {
     const schema = Joi.object({
-      subscription: Joi.string().valid("starter", "pro", "business"),
+      subscription: Joi.string().validate("starter", "pro", "business"),
     });
 
     const { error } = schema.validate(req.body);

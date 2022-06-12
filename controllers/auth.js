@@ -1,6 +1,8 @@
 const { Conflict, Unauthorized, NotFound } = require("http-errors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
+const Jimp = require("jimp");
 
 const { User } = require("../models/user");
 const { SECRET_KEY } = process.env;
@@ -14,10 +16,20 @@ async function register(req, res, next) {
       return next(Conflict(`User with ${email} exist`));
     }
     const hashPassword = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
+    const avatarUrl = gravatar.url(email);
+    Jimp.read(avatarUrl)
+      .then((image) => {
+        return image.resize(250, 250);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+
     const user = await User.create({
       password: hashPassword,
       email,
       subscription,
+      avatarUrl,
     });
     res.status(201).json({
       status: "success",
@@ -25,6 +37,7 @@ async function register(req, res, next) {
       user: {
         email,
         subscription: user.subscription,
+        avatarUrl,
       },
     });
   } catch (err) {
