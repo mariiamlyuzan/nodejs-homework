@@ -3,9 +3,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const gravatar = require("gravatar");
 const Jimp = require("jimp");
-
-const { User } = require("../models/user");
+const shortid = require("shortid");
 const { SECRET_KEY } = process.env;
+const { sendEmail } = require("../nodemailer/sendEmail");
+const { User } = require("../models/user");
 
 async function register(req, res, next) {
   try {
@@ -24,13 +25,23 @@ async function register(req, res, next) {
       .catch((err) => {
         console.error(err);
       });
-
+    const verificationToken = shortid.generate();
     const user = await User.create({
       password: hashPassword,
       email,
       subscription,
       avatarUrl,
+      verificationToken,
     });
+
+    const mail = {
+      to: email,
+      subject: "Confirm email",
+      html: `<a target="_blank" href="http://localhost:3000/api/users/verify/${verificationToken}">Confirm your email</a>`,
+    };
+
+    await sendEmail(mail);
+
     res.status(201).json({
       status: "success",
       code: 201,
@@ -38,6 +49,7 @@ async function register(req, res, next) {
         email,
         subscription: user.subscription,
         avatarUrl,
+        verificationToken,
       },
     });
   } catch (err) {
@@ -53,6 +65,10 @@ async function logIn(req, res, next) {
 
     if (!user) {
       return next(Unauthorized(`Email ${email} not found`));
+    }
+
+    if (!user.verify) {
+      return next(Unauthorized(`Not verify`));
     }
 
     const passwordCompare = bcrypt.compareSync(password, user.password);
